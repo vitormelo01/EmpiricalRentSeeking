@@ -10,11 +10,11 @@ global directory: env EmpiricalRentSeeking_Data
 cd "$directory"
 
 *-------------------------------------------------------------------------------
-* Converting excel to dta
 
-forvalues i = 2003/2019 {
-	
-	insheet using "`i'.annual.singlefile.csv"
+forvalues i = 2003/2017 {
+* Converting excel to dta
+clear
+insheet using "`i'.annual.singlefile.csv"
 
 * Destringing industry variable
 replace industry_code = subinstr(industry_code, "-", "",.)
@@ -33,10 +33,13 @@ keep if /* Traditional, Direct Rent Seeking Industries*/ industry_code == 813211
 save empiricalrentseeking_cleaned`i'.dta, replace
 }
 
+* Appending all files
 clear
-use EmpiricalRS_Cleaned2003.dta
-forvalues i = 2004/2019 {
-	append using EmpiricalRS_Cleaned`i'.dta
+use empiricalrentseeking_cleaned2003.dta
+forvalues i = 2004/2017 {
+	append using empiricalrentseeking_cleaned`i'.dta
 }
 
-save using EmpiricalRS_CleanedTotal
+*Saving clean data for years 2003-2017
+save EmpiricalRS_CleanedTotal.dta
+
