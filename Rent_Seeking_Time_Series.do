@@ -134,10 +134,10 @@ egen total_rs_stateyear_wtequal = mean(rs_ratio_tot_estabs), by(msa_code year)
 egen trad_rs_stateyear_wtequal = mean(rs_ratio_tot_estabs) if hr_trad_direct_rs == 1, by(msa_code year)
 egen inkind_rs_stateyear_wtequal = mean(rs_ratio_tot_estabs) if hr_inkind_direct_rs == 1, by(msa_code year)
 egen indir_rs_state_year_wtequal = mean(rs_ratio_tot_estabs) if hr_indirect_rs == 1, by(msa_code year)
-*Industry weights (the thetas) based on industry size for each of the indexes - no need to have done this for equal weight measures
+*Industry weights (the thetas) based on industry size in synthetic MSAs for each of the indexes - no need to have done this for equal weight measures
 *Total
-egen estabs_total_by_ind_year = total(tot_estabs_msa), by(industry_code year)
-egen estabs_total_by_year = total(tot_estabs_msa), by(year)
+egen estabs_total_by_ind_year = total(synthetic_tot_estabs_msa), by(industry_code year)
+egen estabs_total_by_year = total(synthetic_tot_estabs_msa), by(year)
 gen weight_total_estabs = estabs_total_by_ind_year/estabs_total_by_year
 preserve
 collapse weight_total_estabs, by(industry_code year)
@@ -146,8 +146,8 @@ sum weight_total_estabs_check /* every value should equal 1 */
 restore
 egen total_rs_stateyear_wtindsize = total(weight_total_estabs * rs_ratio_tot_estabs), by(msa_code year)
 *Traditional
-egen estabs_trad_by_ind_year = total(tot_estabs_msa) if hr_trad_direct_rs == 1, by(industry_code year)
-egen estabs_trad_by_year = total(tot_estabs_msa) if hr_trad_direct_rs == 1, by(year)
+egen estabs_trad_by_ind_year = total(synthetic_tot_estabs_msa) if hr_trad_direct_rs == 1, by(industry_code year)
+egen estabs_trad_by_year = total(synthetic_tot_estabs_msa) if hr_trad_direct_rs == 1, by(year)
 gen weight_trad_estabs = estabs_trad_by_ind_year/estabs_trad_by_year
 preserve
 collapse weight_trad_estabs, by(industry_code year)
@@ -156,8 +156,8 @@ sum weight_trad_estabs_check /* every value should equal 1 */
 restore
 egen trad_rs_stateyear_wtindsize = total(weight_trad_estabs * rs_ratio_tot_estabs), by(msa_code year)
 *In-kind
-egen estabs_inkind_by_ind_year = total(tot_estabs_msa) if hr_inkind_direct_rs == 1, by(industry_code year)
-egen estabs_inkind_by_year = total(tot_estabs_msa) if hr_inkind_direct_rs == 1, by(year)
+egen estabs_inkind_by_ind_year = total(synthetic_tot_estabs_msa) if hr_inkind_direct_rs == 1, by(industry_code year)
+egen estabs_inkind_by_year = total(synthetic_tot_estabs_msa) if hr_inkind_direct_rs == 1, by(year)
 gen weight_inkind_estabs = estabs_inkind_by_ind_year/estabs_inkind_by_year
 preserve
 collapse weight_inkind_estabs, by(industry_code year)
@@ -166,8 +166,8 @@ sum weight_inkind_estabs_check /* every value should equal 1 */
 restore
 egen inkind_rs_stateyear_wtindsize = total(weight_inkind_estabs * rs_ratio_tot_estabs), by(msa_code year)
 *Indirect
-egen estabs_indir_by_ind_year = total(tot_estabs_msa) if hr_indirect_rs == 1, by(industry_code year)
-egen estabs_indir_by_year = total(tot_estabs_msa) if hr_indirect_rs == 1, by(year)
+egen estabs_indir_by_ind_year = total(synthetic_tot_estabs_msa) if hr_indirect_rs == 1, by(industry_code year)
+egen estabs_indir_by_year = total(synthetic_tot_estabs_msa) if hr_indirect_rs == 1, by(year)
 gen weight_indir_estabs = estabs_indir_by_ind_year/estabs_indir_by_year
 preserve
 collapse weight_indir_estabs, by(industry_code year)
@@ -179,7 +179,7 @@ egen indir_rs_stateyear_wtindsize = total(weight_indir_estabs * rs_ratio_tot_est
 collapse total_rs_stateyear_wtequal-indir_rs_state_year_wtequal total_rs_stateyear_wtindsize trad_rs_stateyear_wtindsize inkind_rs_stateyear_wtindsize indir_rs_stateyear_wtindsize, by(msa_code msa_title year)
 
 save "state_indexes_tot_estabs_annual.dta", replace
-outsheet using "state_indexes_tot_estabs_annual.csv", comma
+outsheet using "state_indexes_tot_estabs_annual.csv", comma replace
 
 
 
