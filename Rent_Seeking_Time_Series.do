@@ -74,7 +74,7 @@ gen weighted_tot_pop = tot_pop*synth_3386_weights
 bysort year: egen synth_3386_tot_pop = sum(weighted_tot_pop) /* Note: value matches the output of ebalance command */
 
 
-/* %%%%%%%%%% Capital/Synthtic MSA Ratios by State, Year, and Industry Code (Hall and Ross codes) - # of Establishments %%%%%%%%%% */
+/* %%%%%%%%%% Industry- and State-Specific Measures of Rent Seeking - Annual Using # of Establishments %%%%%%%%%% */
 use "EmploymentandEstablishment_Data/MSA_RS_Tot_Estabs.dta", clear
 *Merge with predictor weight data
 merge m:1 msa_code using "CountyandMetroLevelData/Synth_Weight_Data/Predictor_Weights.dta"
@@ -99,7 +99,90 @@ drop if capital_msa == 0
 drop capital_msa-synth_1694_tot_estabs
 gen synthetic_tot_estabs_msa = tot_estabs_msa/rs_ratio_tot_estabs /* this creates just one variable for the synthetic capital MSAs */
 order synthetic_tot_estabs_msa, before(rs_ratio_tot_estabs)
-save "rs_ratios_tot_estabs.dta", replace
+save "ind_state_rs_ratios_tot_estabs_annual.dta", replace
+outsheet using "ind_state_rs_ratios_tot_estabs_annual.csv", comma
+
+
+/* %%%%%%%%%% State-Level Aggregate Indexes of Total, Traditional, In-Kind, and Indirect Rent Seeking - Annual Using # of Establishments %%%%%%%%%% */
+use "ind_state_rs_ratios_tot_estabs_annual.dta", clear
+*Rent seeking industry indicators (according to Hall and Ross) - Traditional Direct, In-kind Direct, Indirect, and all
+gen byte hr_trad_direct_rs = 0
+replace hr_trad_direct_rs = 1 if industry_code == 23 | industry_code == 5411 | industry_code == 52392 ///
+ | industry_code == 54132 | industry_code == 54133 | industry_code == 54169 | industry_code == 54182 ///
+ | industry_code == 56111 | industry_code == 61171 | industry_code == 81311 | industry_code == 81341 ///
+ | industry_code == 81391 | industry_code == 81392 | industry_code == 81393 | industry_code == 81394 ///
+ | industry_code == 81399 | industry_code == 523991 | industry_code == 541611 | industry_code == 541612 ///
+ | industry_code == 541613 | industry_code == 541614 | industry_code == 541618 | industry_code == 561599 ///
+ | industry_code == 813211 | industry_code == 813312
+gen byte hr_inkind_direct_rs = 0
+replace hr_inkind_direct_rs = 1 if industry_code == 56131 | industry_code == 71111 ///
+ | industry_code == 71391 | industry_code == 71394 | industry_code == 71399 ///
+ | industry_code == 72231 | industry_code == 72232 | industry_code == 72241 | industry_code == 81293 ///
+ | industry_code == 81299 | industry_code == 532281 | industry_code == 722511 | industry_code == 722513 | industry_code == 722514 | industry_code == 722515 ///
+ | industry_code == 812191 | industry_code == 812199
+gen byte hr_indirect_rs = 0
+replace hr_indirect_rs = 1 if industry_code == 33995 | industry_code == 51111 | industry_code == 51112 ///
+ | industry_code == 51113 | industry_code == 51114 | industry_code == 54171 ///
+ | industry_code == 54172 | industry_code == 54181 | industry_code == 54183 | industry_code == 54184 ///
+ | industry_code == 54185 | industry_code == 54186 | industry_code == 54187 | industry_code == 54189 ///
+ | industry_code == 511199
+gen byte hr_rs = (hr_trad_direct_rs == 1 | hr_inkind_direct_rs == 1 | hr_indirect_rs == 1)
+tab hr_rs   /* shouldn't be any zeros */
+drop hr_rs
+*Indexes based on equal industry weight
+egen total_rs_stateyear_wtequal = mean(rs_ratio_tot_estabs), by(msa_code year)
+egen trad_rs_stateyear_wtequal = mean(rs_ratio_tot_estabs) if hr_trad_direct_rs == 1, by(msa_code year)
+egen inkind_rs_stateyear_wtequal = mean(rs_ratio_tot_estabs) if hr_inkind_direct_rs == 1, by(msa_code year)
+egen indir_rs_state_year_wtequal = mean(rs_ratio_tot_estabs) if hr_indirect_rs == 1, by(msa_code year)
+*Industry weights (the thetas) based on industry size for each of the indexes - no need to have done this for equal weight measures
+*Total
+egen estabs_total_by_ind_year = total(tot_estabs_msa), by(industry_code year)
+egen estabs_total_by_year = total(tot_estabs_msa), by(year)
+gen weight_total_estabs = estabs_total_by_ind_year/estabs_total_by_year
+preserve
+collapse weight_total_estabs, by(industry_code year)
+egen weight_total_estabs_check = total(weight_total_estabs), by(year)
+sum weight_total_estabs_check /* every value should equal 1 */
+restore
+egen total_rs_stateyear_wtindsize = total(weight_total_estabs * rs_ratio_tot_estabs), by(msa_code year)
+*Traditional
+egen estabs_trad_by_ind_year = total(tot_estabs_msa) if hr_trad_direct_rs == 1, by(industry_code year)
+egen estabs_trad_by_year = total(tot_estabs_msa) if hr_trad_direct_rs == 1, by(year)
+gen weight_trad_estabs = estabs_trad_by_ind_year/estabs_trad_by_year
+preserve
+collapse weight_trad_estabs, by(industry_code year)
+egen weight_trad_estabs_check = total(weight_trad_estabs), by(year)
+sum weight_trad_estabs_check /* every value should equal 1 */
+restore
+egen trad_rs_stateyear_wtindsize = total(weight_trad_estabs * rs_ratio_tot_estabs), by(msa_code year)
+*In-kind
+egen estabs_inkind_by_ind_year = total(tot_estabs_msa) if hr_inkind_direct_rs == 1, by(industry_code year)
+egen estabs_inkind_by_year = total(tot_estabs_msa) if hr_inkind_direct_rs == 1, by(year)
+gen weight_inkind_estabs = estabs_inkind_by_ind_year/estabs_inkind_by_year
+preserve
+collapse weight_inkind_estabs, by(industry_code year)
+egen weight_inkind_estabs_check = total(weight_inkind_estabs), by(year)
+sum weight_inkind_estabs_check /* every value should equal 1 */
+restore
+egen inkind_rs_stateyear_wtindsize = total(weight_inkind_estabs * rs_ratio_tot_estabs), by(msa_code year)
+*Indirect
+egen estabs_indir_by_ind_year = total(tot_estabs_msa) if hr_indirect_rs == 1, by(industry_code year)
+egen estabs_indir_by_year = total(tot_estabs_msa) if hr_indirect_rs == 1, by(year)
+gen weight_indir_estabs = estabs_indir_by_ind_year/estabs_indir_by_year
+preserve
+collapse weight_indir_estabs, by(industry_code year)
+egen weight_indir_estabs_check = total(weight_indir_estabs), by(year)
+sum weight_indir_estabs_check /* every value should equal 1 */
+restore
+egen indir_rs_stateyear_wtindsize = total(weight_indir_estabs * rs_ratio_tot_estabs), by(msa_code year)
+
+collapse total_rs_stateyear_wtequal-indir_rs_state_year_wtequal total_rs_stateyear_wtindsize trad_rs_stateyear_wtindsize inkind_rs_stateyear_wtindsize indir_rs_stateyear_wtindsize, by(msa_code msa_title year)
+
+save "state_indexes_tot_estabs_annual.dta", replace
+outsheet using "state_indexes_tot_estabs_annual.csv", comma
+
+
+
 
 
 
@@ -119,25 +202,3 @@ replace capital_msa = 1 if msa_code == 3386 | msa_code == 2794 | msa_code == 380
  | msa_code == 1662 | msa_code == 3154 | msa_code == 1694
 
  
- *Rent seeking industry indicators (according to Hall and Ross) - Traditional Direct, In-kind Direct, Indirect, and all
-gen byte hr_trad_direct_rs = 0
-replace hr_trad_direct_rs = 1 if industry_code == 23 | industry_code == 5411 | industry_code == 52392 ///
- | industry_code == 54132 | industry_code == 54133 | industry_code == 54169 | industry_code == 54182 ///
- | industry_code == 56111 | industry_code == 61171 | industry_code == 81311 | industry_code == 81341 ///
- | industry_code == 81391 | industry_code == 81392 | industry_code == 81393 | industry_code == 81394 ///
- | industry_code == 81399 | industry_code == 523991 | industry_code == 541611 | industry_code == 541612 ///
- | industry_code == 541613 | industry_code == 541614 | industry_code == 541618 | industry_code == 561599 ///
- | industry_code == 813211 | industry_code == 813312
-gen byte hr_inkind_direct_rs = 0
-replace hr_inkind_direct_rs = 1 if industry_code == 53222 | industry_code == 56131 | industry_code == 71111 ///
- | industry_code == 71391 | industry_code == 71394 | industry_code == 71399 | industry_code == 72211 ///
- | industry_code == 72231 | industry_code == 72232 | industry_code == 72241 | industry_code == 81293 ///
- | industry_code == 81299 | industry_code == 722211 | industry_code == 722212 | industry_code == 722213 ///
- | industry_code == 812191 | industry_code == 812199
-gen byte hr_indirect_rs = 0
-replace hr_indirect_rs = 1 if industry_code == 33995 | industry_code == 51111 | industry_code == 51112 ///
- | industry_code == 51113 | industry_code == 51114 | industry_code == 51223 | industry_code == 54171 ///
- | industry_code == 54172 | industry_code == 54181 | industry_code == 54183 | industry_code == 54184 ///
- | industry_code == 54185 | industry_code == 54186 | industry_code == 54187 | industry_code == 54189 ///
- | industry_code == 511199
-gen byte hr_rs = (hr_trad_direct_rs == 1 | hr_inkind_direct_rs == 1 | hr_indirect_rs == 1)
